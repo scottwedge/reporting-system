@@ -1,0 +1,40 @@
+info:
+  description: 报表系统接口文档
+  version: 1.0.0
+  title: Reporting System API
+
+schemes:
+  - http
+
+responses:
+  Response200:
+    description: 请求成功
+    properties:
+      msg:
+        type: string
+      bool_status:
+        type: boolean
+    example: { bool_status: true, msg: ok }
+  ResponsePage:
+    msg:
+      type: string
+    bool_status:
+      type: boolean
+
+parameters:
+  Page:
+    name: page
+    description: 请求页数
+    in: query
+    type: integer
+    required: false
+    default: 1
+  PerPage:
+    name: per_page
+    description: 每页数据量
+    in: query
+    type: integer
+    required: false
+    default: 10
+
+definitions:

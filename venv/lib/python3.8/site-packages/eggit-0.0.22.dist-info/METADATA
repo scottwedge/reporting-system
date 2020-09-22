@@ -1,0 +1,23 @@
+Metadata-Version: 2.1
+Name: eggit
+Version: 0.0.22
+Summary: a python lib
+Home-page: https://github.com/MyJoiT/eggit
+Author: JoiT
+Author-email: myjoit@outlook.com
+License: GPL3
+Download-URL: https://github.com/MyJoiT/eggit/archive/0.0.22.tar.gz
+Keywords: eggit,lib,tool
+Platform: UNKNOWN
+Requires-Dist: pyjwt (>=1.4.2)
+Requires-Dist: sqlalchemy (>=1.2.7)
+Requires-Dist: flask-restful (>=0.3.6)
+
+==============
+DOCS FOR EGGIT
+==============
+
+:author: JoiT
+:email: myjoit@outlook.com
+
+
