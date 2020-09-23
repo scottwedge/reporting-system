@@ -1,7 +1,7 @@
 from .. import admin
 from ..sales import sales_analysis_report, today_sales, sales_analysis_report_line, test, month_salelog_list, \
     day_sales, third_tier_sale_log, monthly_sales_data, product_type_store_sale_compare, ergonomics_sale_log, \
-    global_sale_log, national_sales_analysis, entry_source_fee
+    global_sale_log, national_sales_analysis, entry_source_fee, global_sale_type_lost_log
 
 urls = [
     # '/', admin.AdminIndex,
@@ -23,5 +23,7 @@ urls = [
     product_type_store_sale_compare.ProductTypeStoreSaleCompare,
     '/reporting/sales/report_order/day', day_sales.DaySales,
     '/reporting/sales/report_order/NationalSalesAnalysis', national_sales_analysis.NationalSalesAnalysis,
+    '/reporting/sales/report_order/GlobalTyprSaleLostLog', global_sale_type_lost_log.GlobalTyprSaleLostLog,
+    '/reporting/sales/report_order/GlobalTyprSaleMiddleLog', global_sale_type_lost_log.GlobalTyprSaleMiddleLog,
     '/test', test.ReportOderList,
 ]
