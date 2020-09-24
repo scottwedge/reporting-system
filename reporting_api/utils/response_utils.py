@@ -30,8 +30,8 @@ def obj_to_dict(obj, keys=None, *, display=True, format_time='%Y-%m-%d %H:%M:%S'
                     dict_result[key] = key_value.value
                 elif isinstance(key_value, Decimal):
                     dict_result[key] = str(key_value)
-                # elif isinstance(key_value, float):
-                #     dict_result[key] = (key_value)
+                elif isinstance(key_value, float):
+                    dict_result[key] = round(key_value, 2)
                 else:
                     dict_result[key] = key_value
     return dict_result
@@ -51,3 +51,11 @@ def dict_sum(x, y):
     X, Y = Counter(x), Counter(y)
     z = dict(X + Y)
     return z
+
+
+def double_point(number):
+    return round(number, 2)
+
+
+def four_point(number):
+    return round(number, 4)

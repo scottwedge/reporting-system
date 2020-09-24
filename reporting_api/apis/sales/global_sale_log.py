@@ -3,18 +3,31 @@
 import re
 import datetime
 from eggit.flask_restful_response import ok
+from reporting_api.extensions import db
+
 from flask_restful import Resource, reqparse, marshal
 from reporting_api.utils.requests_utils import get_argument
 from reporting_api.exceptions.service_error import ServiceError
 from reporting_api.exceptions.service_exception import ServiceException
-from reporting_api.models.sales_models.sales_analysis_report import SalesAnalysisReportModel, ProProductModel
 from reporting_api.utils.response_utils import obj_to_dict
+from reporting_api.models.sales_models.sales_analysis_report import (
+    SalesAnalysisReportModel as SalesM,
+    ProProductModel as ProductM
+)
 
 
 class GlobalSaleLog(Resource):
+
+    def fob_maoli(self, factoryfee, fob):
+        # 换汇 = 出厂价 / fob
+        swap = factoryfee / fob
+        # FOB毛利 = FOB金额 * (汇率 + 0.17 * 换汇 / 1.17 - 换汇)
+        fob_maoli = fob * (swap + 0.17 * swap / 1.17 - swap)
+        return "{}%".format(round(fob_maoli * 100), 2)
+
     def get(self):
-        start_time = get_argument("start_time", default='2019-01-01')
-        end_time = get_argument("end_time", default='2019-02-02')
+        start_time = get_argument("start_time", default='2019-9-01')
+        end_time = get_argument("end_time", default='2019-9-22')
         city = get_argument("city", default="Japan")
         city_code = {
             "Japan": {"ord_sitecode": "JP", "db_field": "all_feejp"},  # 日本
@@ -23,28 +36,26 @@ class GlobalSaleLog(Resource):
             "India": {"ord_sitecode": "INEI", "db_field": "all_feeeu"},  # 印度
             "US": {"ord_sitecode": "US", "db_field": "all_feeus"},  # 美国
         }
+        table = db.session.query(SalesM, ProductM).join(SalesM, SalesM.pro_fname == ProductM.bsname)
 
-        if start_time > end_time:
-            raise ServiceException(ServiceError.INVALID_VALUE)
-
-        results = SalesAnalysisReportModel.query.filter(
-            SalesAnalysisReportModel.ord_pay_time.between(start_time, end_time),
-            SalesAnalysisReportModel.ord_sitecode == city_code[city].get("ord_sitecode"))
-        temp_list = []
+        results = table.filter(
+            SalesM.ord_pay_time.between(start_time, end_time),
+            SalesM.ord_sitecode == city_code[city].get("ord_sitecode"))
+        tmp_list = []
         tmp_dic = {
-            "tot_sanum": 0,  # 总销量
-            "tot_samount": 0,  # 总销售额
-            "tot_platfee": 0,  # 总销售额
-
-            "ord_maoli": 0.0,  # 毛利
-            "ord_fobfee": 0.0,  # FOB
-            "ord_costfee": 0.0  # 成本费=fob仓对应的值
         }
-        for result in results:
-            obj_dict = obj_to_dict(result, keys=[], display=False)
+        sorts_list = ["ord_salenum", "ord_maoli", "ord_sale_amount", "ord_sale_price", "ord_platfee", "ord_factoryfee",
+                      "ord_fobfee"]
+        for i in sorts_list:
+            tmp_dic[i] = 0
+        for sales_table, product_table in results:
+            obj_dict = obj_to_dict(sales_table, keys=[], display=False)
+            obj_dict.update({
+                'image': product_table.pro_image_path,
+            })
             store_code = obj_dict.get('source_code', '')
-            if store_code not in temp_list:
-                temp_list.append(store_code)
+            if store_code not in tmp_list:
+                tmp_list.append(store_code)
                 tmp_dic[store_code] = {
                     "model": [],  # 执享型号 and 乐歌型号
                     "model_dic": {},
@@ -52,79 +63,60 @@ class GlobalSaleLog(Resource):
             model_key = "{}_{}".format(obj_dict.get('pro_fname'), obj_dict.get('pro_bsname'))
             if model_key not in tmp_dic[store_code]['model']:
                 tmp_dic[store_code]['model'].append(model_key)
-                tmp_dic[store_code]["model_dic"][model_key] = {
-                    "ord_salenum": 0,  # 销量
-                    "ord_sale_amount": 0,  # 销售额
-                    "ord_platfee": 0,  # 平台
+                tmp_dic[store_code]["model_dic"] = {
+                    model_key: {"image": ''}
                 }
-            # 平台费用
-            try:
-                ord_platfee = float(obj_dict.get("ord_platfee"))
-            except Exception as e:
-                ord_platfee = 0
-            tmp_dic[store_code]["model_dic"][model_key]["ord_platfee"] += ord_platfee
-            tmp_dic["tot_platfee"] += ord_platfee
-            # 销量
-            ord_salenum = int(obj_dict.get("ord_salenum"))
-            tmp_dic[store_code]["model_dic"][model_key]["ord_salenum"] += ord_salenum
-            tmp_dic["tot_sanum"] += ord_salenum
-            # 销售额
-            ord_sale_amount = float(obj_dict.get("ord_sale_amount"))
-            tmp_dic[store_code]["model_dic"][model_key]["ord_sale_amount"] += ord_sale_amount
-            tmp_dic["tot_samount"] += ord_sale_amount
-
-            for key in ['ord_maoli', 'ord_fobfee', 'ord_costfee']:
+                for i in ["ord_salenum", "ord_sale_amount", "ord_sale_price", "ord_platfee"]:
+                    tmp_dic[store_code]["model_dic"][model_key][i] = 0
+            for sort in sorts_list:
                 try:
-                    tmp_dic[key] += float(obj_dict.get(key))
+                    tmp_dic[sort] += float(obj_dict.get(sort)) if obj_dict.get(sort) else 0
                 except Exception as e:
                     pass
-
-        res_ls = []
-        tot_samount = tmp_dic.pop("tot_samount")
-        if not tot_samount:
-            return ok({"data": []})
-        tot_maoli = tmp_dic.pop("ord_maoli") / tot_samount if tot_samount else 0
-        ret_dic = {
-            'total_sale_num': round(tmp_dic.pop("tot_sanum"), 1),
-            'total_sale_amount': round(tot_samount, 1),
-            'total_ord_platfee': round(tmp_dic.pop("tot_platfee"), 1),
-            "total_maoli": round(tot_maoli, 3),
-            "total_fobfee": round(tmp_dic.pop("ord_fobfee"), 1),
-            "total_costfee": round(tmp_dic.pop("ord_costfee"), 1),
-            "data": []
-        }
-        ret_dic.update({
-            "tot_average": round(tot_samount / ret_dic["total_sale_num"] if ret_dic["total_sale_amount"] else 0, 1),
-        })
+            for sales in ["ord_salenum", "ord_sale_amount", "ord_sale_price", "ord_platfee"]:
+                try:
+                    print(obj_dict.get(sales))
+                    tmp_dic[store_code]["model_dic"][model_key][sales] += float(obj_dict.get(sales)) if obj_dict.get(
+                        sales) else 0
+                except Exception as e:
+                    pass
+            if not tmp_dic[store_code]["model_dic"][model_key]['image']:
+                tmp_dic[store_code]["model_dic"][model_key]['image'] = obj_dict.get("image")
+        res_list = []
+        shop_name_list = []
         num = 0
-        for tmp_k in tmp_dic:
-            for model_k in tmp_dic[tmp_k]['model_dic']:
+        if not tmp_dic['ord_sale_amount']:
+            return ok({"title": '', "data": res_list})
+        table_txt = "{}-{}{}销售{}美金, 毛利率{}%. FOB金额{}美金,, FOB毛利{}元, FOB毛利占比{}%."
+
+        table_txt = table_txt.format(start_time.replace('-', '/'), end_time.replace('-', '/'), city,
+                                     round(tmp_dic['ord_sale_amount'], 2),
+                                     round((tmp_dic['ord_maoli'] / tmp_dic['ord_sale_amount']) * 100, 2),
+                                     round(tmp_dic['ord_fobfee'], 2),
+                                     self.fob_maoli(tmp_dic['ord_fobfee'], tmp_dic['ord_factoryfee']),
+                                     round(tmp_dic['ord_factoryfee'] / tmp_dic['ord_sale_amount'] * 100, 2))
+
+        for shop in tmp_dic:
+            if shop in sorts_list:
+                continue
+            shop_name = shop
+            if shop_name in shop_name_list:
+                shop_name = ''
+            for mede in tmp_dic[shop]["model_dic"]:
                 num += 1
-                shop_name = tmp_k
-                if tmp_k in res_ls:
-                    shop_name = ''
-                else:
-                    res_ls.append(shop_name)
-                mode_dic = {
+                arge = {
                     "id": num,
                     "shop_name": shop_name,
-                    "fname": model_k.split('_')[0],
-                    "bsname": model_k.split('_')[1],
-                    "sale_num": int(tmp_dic[tmp_k]["model_dic"][model_k]['ord_salenum']),
-                    "sale_amount": round(tmp_dic[tmp_k]["model_dic"][model_k]['ord_sale_amount'], 1),
-                    "ord_platfee": round(tmp_dic[tmp_k]["model_dic"][model_k]['ord_platfee'], 1),
+                    "fname": mede.split('_')[0],
+                    "bsname": mede.split('_')[1],
+                    "image": tmp_dic[shop]["model_dic"][mede]["image"],
+                    "sale_num": int(tmp_dic[shop]["model_dic"][mede]["ord_salenum"]),
+                    "sale_amount": round(tmp_dic[shop]["model_dic"][mede]["ord_sale_amount"], 2),
+                    "sale_platfee": round(tmp_dic[shop]["model_dic"][mede]["ord_platfee"], 2),
                 }
-
-                user = ProProductModel.query.filter(ProProductModel.bsname == mode_dic['bsname']).first()
-                product_dict = obj_to_dict(user, keys=[], display=False)
-                mode_dic.update({
-                    'img_url': product_dict.get("pro_image_path", ""),
-                    'sale_avg': round(mode_dic.get("sale_amount", 0) / mode_dic.get("sale_num", 0), 1),
+                arge.update({
+                    "sale_average_plaftee": round(arge.get("sale_amount") / arge.get("sale_num"), 2)
                 })
-                if mode_dic.get("shop_name"):
-                    mode_dic['children'] = []
-                    ret_dic['data'].append(mode_dic)
-                else:
-                    ret_dic['data'][-1]['children'].append(mode_dic)
+                res_list.append(arge)
 
-        return ok(ret_dic)
+        return ok({"title": table_txt, "data": res_list})

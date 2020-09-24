@@ -15,7 +15,7 @@ from reporting_api.utils.response_utils import obj_to_dict
 class IndependentStationNationalSalesAnalysis(Resource):
     def get(self):
         start_time = get_argument('start_time', default='2020-09-01')
-        end_time = get_argument('end_time', default='2020-09-21')
+        end_time = get_argument('end_time', default='2020-09-23')
 
         if start_time > end_time:
             raise ServiceException(ServiceError.INVALID_VALUE)
@@ -68,41 +68,48 @@ class IndependentStationNationalSalesAnalysis(Resource):
             return ok(data={'data': []})
 
         for dic in data:
-            dic['ord_sale_amount_Global'] = sum([v for k, v in dic.items() if k.startswith('ord_sale_amount_') and v])
+            dic['ord_sale_amount_Global'] = round(
+                sum([v for k, v in dic.items() if k.startswith('ord_sale_amount_') and v]), 2)
             dic['ord_salenum_Global'] = sum([v for k, v in dic.items() if k.startswith('ord_salenum_') and v])
-            dic['ord_maili_Global'] = sum([v for k, v in dic.items() if k.startswith('ord_maoli_') and v])
-            dic['ord_maoli_rate_Global'] = sum([v for k, v in dic.items() if k.startswith('ord_maoli_') and v]) / dic[
-                'ord_sale_amount_Global'] if dic['ord_sale_amount_Global'] else 0
+            dic['ord_maili_Global'] = round(sum([v for k, v in dic.items() if k.startswith('ord_maoli_') and v]), 2)
+            dic['ord_maoli_rate_Global'] = round(
+                sum([v for k, v in dic.items() if k.startswith('ord_maoli_') and v]) / dic[
+                    'ord_sale_amount_Global'] if dic['ord_sale_amount_Global'] else 0, 4)
 
         total_dic = {}
         for dic in data:
             for source in source_code:
                 if f'ord_salenum_{source}' in dic.keys():  # ord_maoli /  ord_sale_amount
                     dic.update({
-                        f'ord_maoli_rate_{source}': dic.get(f'ord_maoli_{source}', 0) /
-                                                    dic[f'ord_sale_amount_{source}'] if dic[
-                            f'ord_sale_amount_{source}'] else 0,
-                        f'market_share_{source}': dic[f'ord_sale_amount_{source}'] /
-                                                  dic['ord_sale_amount_Global'] if dic['ord_sale_amount_Global'] else 0
+                        f'ord_maoli_rate_{source}': round(dic.get(f'ord_maoli_{source}', 0) /
+                                                          dic[f'ord_sale_amount_{source}'] if dic[
+                            f'ord_sale_amount_{source}'] else 0, 4),
+                        f'market_share_{source}': round(dic[f'ord_sale_amount_{source}'] /
+                                                        dic['ord_sale_amount_Global'] if dic[
+                            'ord_sale_amount_Global'] else 0, 4)
                     })
                     total_dic.update({
-                        f'total_ord_sale_amount_{source}': dic.get(f'ord_sale_amount_{source}', 0) +
-                                                           total_dic.get(f'total_ord_sale_amount_{source}', 0),
+                        f'total_ord_sale_amount_{source}': round(dic.get(f'ord_sale_amount_{source}', 0) +
+                                                                 total_dic.get(f'total_ord_sale_amount_{source}', 0),
+                                                                 2),
                         f'total_ord_salenum_{source}': dic.get(f'ord_salenum_{source}', 0) +
                                                        total_dic.get(f'total_ord_salenum_{source}', 0),
                         f'total_ord_maoli_{source}': dic.get(f'ord_maoli_{source}', 0) +
                                                      total_dic.get(f'total_ord_maoli_{source}', 0),
                     })
 
-        total_dic['total_ord_salenum_Global'] = sum([v for k, v in total_dic.items() if k.startswith('total_ord_salenum_') and v])
-        total_dic['total_ord_sale_amount_Global'] = sum([v for k, v in total_dic.items() if
-                                                         k.startswith('total_ord_sale_amount_') and v])
+        total_dic['total_ord_salenum_Global'] = sum(
+            [v for k, v in total_dic.items() if k.startswith('total_ord_salenum_') and v])
+        total_dic['total_ord_sale_amount_Global'] = round(sum([v for k, v in total_dic.items() if
+                                                               k.startswith('total_ord_sale_amount_') and v]), 2)
         total_dic['total_ord_maoli_Global'] = sum([v for k, v in total_dic.items() if
                                                    k.startswith('total_ord_maoli_') and v])
-        total_dic['total_ord_maoli_rate_Global'] = total_dic['total_ord_maoli_Global'] / \
-                                                   total_dic['total_ord_sale_amount_Global']
+        total_dic['total_ord_maoli_rate_Global'] = round(total_dic['total_ord_maoli_Global'] / \
+                                                         total_dic['total_ord_sale_amount_Global'], 4)
 
         for source in source_code:
             if f'ord_salenum_{source}' in total_dic.keys():
-                total_dic[f'total_ord_maoli_rate_{source}'] = (total_dic.get(f'total_ord_maoli_{source}', 0) / total_dic.get(f'total_ord_sale_amount_{source}', 0))
+                total_dic[f'total_ord_maoli_rate_{source}'] = (
+                        total_dic.get(f'total_ord_maoli_{source}', 0) / total_dic.get(
+                    f'total_ord_sale_amount_{source}', 0))
         return ok(data={'data': data, **total_dic})

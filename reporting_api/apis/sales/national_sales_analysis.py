@@ -54,8 +54,8 @@ class NationalSalesAnalysis(Resource):
 
             else:
                 data[tmp.index(pay_date)].update({
-                    f'ord_sale_amount_{sitecode}': args['ord_sale_amount_' + sitecode] + data[tmp.index(pay_date)][
-                        'ord_sale_amount_' + sitecode],
+                    f'ord_sale_amount_{sitecode}': round(args['ord_sale_amount_' + sitecode] + data[tmp.index(pay_date)][
+                        'ord_sale_amount_' + sitecode],2),
                     f'ord_salenum_{sitecode}': args['ord_salenum_' + sitecode] + data[tmp.index(pay_date)][
                         'ord_salenum_' + sitecode],
                     f'ord_maoli_{sitecode}': args['ord_maoli_' + sitecode] + data[tmp.index(pay_date)][
@@ -66,27 +66,30 @@ class NationalSalesAnalysis(Resource):
             return ok(data={'data': []})
 
         for dic in data:
-            dic['ord_sale_amount_Global'] = sum([v for k, v in dic.items() if k.startswith('ord_sale_amount_') and v])
+            dic['ord_sale_amount_Global'] = round(
+                sum([v for k, v in dic.items() if k.startswith('ord_sale_amount_') and v]), 2)
             dic['ord_salenum_Global'] = sum([v for k, v in dic.items() if k.startswith('ord_salenum_') and v])
-            dic['ord_maili_Global'] = sum([v for k, v in dic.items() if k.startswith('ord_maoli_') and v])
-            dic['ord_maoli_rate_Global'] = sum([v for k, v in dic.items() if k.startswith('ord_maoli_') and v]) / dic[
-                'ord_sale_amount_Global'] if dic['ord_sale_amount_Global'] else 0
+            dic['ord_maili_Global'] = round(sum([v for k, v in dic.items() if k.startswith('ord_maoli_') and v]), 2)
+            dic['ord_maoli_rate_Global'] = round(
+                sum([v for k, v in dic.items() if k.startswith('ord_maoli_') and v]) / dic[
+                    'ord_sale_amount_Global'] if dic['ord_sale_amount_Global'] else 0, 4)
 
         total_dic = {}
         for dic in data:
             for sitecode in ord_sitecode:
                 if f'ord_salenum_{sitecode}' in dic.keys():  # ord_maoli /  ord_sale_amount
                     dic.update({
-                        f'ord_maoli_rate_{sitecode}': dic.get(f'ord_maoli_{sitecode}', 0) /
-                                                      dic[f'ord_sale_amount_{sitecode}'] if dic[
-                            f'ord_sale_amount_{sitecode}'] else 0,
-                        f'market_share_{sitecode}': dic[f'ord_sale_amount_{sitecode}'] /
-                                                    dic['ord_sale_amount_Global'] if dic[
-                            'ord_sale_amount_Global'] else 0,
+                        f'ord_maoli_rate_{sitecode}': round(dic.get(f'ord_maoli_{sitecode}', 0) /
+                                                            dic[f'ord_sale_amount_{sitecode}'] if dic[
+                            f'ord_sale_amount_{sitecode}'] else 0, 4),
+                        f'market_share_{sitecode}': round(dic[f'ord_sale_amount_{sitecode}'] /
+                                                          dic['ord_sale_amount_Global'] if dic[
+                            'ord_sale_amount_Global'] else 0, 4)
                     })
                     total_dic.update({
-                        f'total_ord_sale_amount_{sitecode}': dic.get(f'ord_sale_amount_{sitecode}', 0) +
-                                                             total_dic.get(f'total_ord_sale_amount_{sitecode}', 0),
+                        f'total_ord_sale_amount_{sitecode}': round(dic.get(f'ord_sale_amount_{sitecode}', 0) +
+                                                                   total_dic.get(f'total_ord_sale_amount_{sitecode}',
+                                                                                 0), 2),
                         f'total_ord_salenum_{sitecode}': dic.get(f'ord_salenum_{sitecode}', 0) +
                                                          total_dic.get(f'total_ord_salenum_{sitecode}', 0),
                         f'total_ord_maoli_{sitecode}': dic.get(f'ord_maoli_{sitecode}', 0) +
@@ -99,14 +102,14 @@ class NationalSalesAnalysis(Resource):
                                                          k.startswith('total_ord_sale_amount_') and v])
         total_dic['total_ord_maoli_Global'] = sum([v for k, v in total_dic.items() if
                                                    k.startswith('total_ord_maoli_') and v])
-        total_dic['total_ord_maoli_rate_Global'] = total_dic['total_ord_maoli_Global'] / \
-                                                   total_dic['total_ord_sale_amount_Global']
+        total_dic['total_ord_maoli_rate_Global'] = round(total_dic['total_ord_maoli_Global'] / \
+                                                         total_dic['total_ord_sale_amount_Global'], 2)
 
         for sitecode in ord_sitecode:
             if f'total_ord_salenum_{sitecode}' in total_dic.keys():
-                total_dic[f'total_ord_maoli_rate_{sitecode}'] = (
+                total_dic[f'total_ord_maoli_rate_{sitecode}'] = round((
                         total_dic.get(f'total_ord_maoli_{sitecode}', 0) / total_dic.get(
-                    f'total_ord_sale_amount_{sitecode}', 0))
-                total_dic[f'total_market_share_{sitecode}'] = total_dic[f'total_ord_sale_amount_{sitecode}'] / \
-                                                              total_dic['total_ord_sale_amount_Global']
+                    f'total_ord_sale_amount_{sitecode}', 0)), 4)
+                total_dic[f'total_market_share_{sitecode}'] = round(total_dic[f'total_ord_sale_amount_{sitecode}'] / \
+                                                                    total_dic['total_ord_sale_amount_Global'], 4)
         return ok(data={'data': data, **total_dic})

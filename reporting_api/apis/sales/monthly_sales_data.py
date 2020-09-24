@@ -83,12 +83,12 @@ class MonthlySalesData(Resource):
         # 总环比和总同比
         total_dic.update({
             'total_last_year_ord_sale_amount': last_year_month_data[1]['total_ord_sale_amount'],
-            'total_year_on_year_basis': total_dic['total_ord_sale_amount'] -
-                                        last_year_month_data[1]['total_ord_sale_amount'] /
+            'total_year_on_year_basis': (total_dic['total_ord_sale_amount'] -
+                                         last_year_month_data[1]['total_ord_sale_amount']) /
                                         last_year_month_data[1]['total_ord_sale_amount'],
             'total_last_month_ord_sale_amount': last_month_data[1]['total_ord_sale_amount'],
-            'month_on_month_ratio': total_dic['total_ord_sale_amount'] -
-                                    last_month_data[1]['total_ord_sale_amount'] /
+            'month_on_month_ratio': (total_dic['total_ord_sale_amount'] -
+                                     last_month_data[1]['total_ord_sale_amount']) /
                                     last_month_data[1]['total_ord_sale_amount'],
             'total_true_total_ord_sale_amount': total_dic['total_ord_sale_amount'],
             'total_solo_price': total_dic['total_ord_sale_amount'] / total_dic['total_count']

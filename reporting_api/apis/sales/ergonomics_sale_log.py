@@ -12,8 +12,8 @@ from reporting_api.utils.response_utils import obj_to_dict
 
 class ErgonomicsSaleLog(Resource):
     def get(self):
-        start_time = get_argument('start_time', default='2018-10-01')
-        end_time = get_argument('end_time', default='2020-10-02')
+        start_time = get_argument('start_time', default='2019-09-01')
+        end_time = get_argument('end_time', default='2019-09-30')
 
         user = SalesAnalysisReportModel.query
 
@@ -56,7 +56,7 @@ class ErgonomicsSaleLog(Resource):
                 })
 
         if not data:
-            return ok('没有数据')
+            return ok(data={[]})
         for dic in data:
             dic['ord_sale_amount_all'] = sum([v for k, v in dic.items() if k.startswith('ord_sale_amount_') and v])
             dic['ord_salenum_all'] = sum([v for k, v in dic.items() if k.startswith('ord_salenum_') and v])
@@ -66,14 +66,15 @@ class ErgonomicsSaleLog(Resource):
             for pro_sec_type in pro_sec_types:
                 pro_sec_type = pro_sec_type.replace(' ', '_')
                 dic.update({
-                    f'ord_sale_amount_{pro_sec_type}_rate': dic.get(f'ord_sale_amount_{pro_sec_type}', 0) /
-                                                            dic['ord_sale_amount_all'],
+                    f'ord_sale_amount_{pro_sec_type}_rate': round(dic.get(f'ord_sale_amount_{pro_sec_type}', 0) /
+                                                                  dic['ord_sale_amount_all'], 4)
                 })
                 total_dic.update({
-                    f'total_ord_sale_amount_{pro_sec_type}': dic.get(f'ord_sale_amount_{pro_sec_type}', 0) +
-                                                             total_dic.get(f'ord_sale_amount_{pro_sec_type}', 0),
-                    f'total_ord_salenum_{pro_sec_type}': dic.get(f'ord_salenum_{pro_sec_type}', 0) +
-                                                         total_dic.get(f'ord_salenum_{pro_sec_type}', 0),
+                    f'total_ord_sale_amount_{pro_sec_type}': round(dic.get(f'ord_sale_amount_{pro_sec_type}', 0) +
+                                                                   total_dic.get(
+                                                                       f'total_ord_sale_amount_{pro_sec_type}', 0), 2),
+                    f'total_ord_salenum_{pro_sec_type}': round(dic.get(f'ord_salenum_{pro_sec_type}', 0) +
+                                                               total_dic.get(f'total_ord_salenum_{pro_sec_type}', 0), 2)
                 })
         total_dic['total_ord_sale_amount_all'] = sum([v for k, v in total_dic.items() if
                                                       k.startswith('total_ord_sale_amount_') and v])
@@ -81,7 +82,7 @@ class ErgonomicsSaleLog(Resource):
                                                   k.startswith('total_ord_salenum_') and v])
         for pro_sec_type in pro_sec_types:
             pro_sec_type = pro_sec_type.replace(' ', '_')
-            total_dic[f'total_ord_sale_amount_{pro_sec_type}_rate'] = total_dic[
-                                                                          f'total_ord_sale_amount_{pro_sec_type}'] / \
-                                                                      total_dic['total_ord_sale_amount_all']
+            total_dic[f'total_ord_sale_amount_{pro_sec_type}_rate'] = round(total_dic[
+                                                                                f'total_ord_sale_amount_{pro_sec_type}'] / \
+                                                                            total_dic['total_ord_sale_amount_all'], 4)
         return ok(data={'data': data, **total_dic})

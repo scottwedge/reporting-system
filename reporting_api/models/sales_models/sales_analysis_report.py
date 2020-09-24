@@ -31,6 +31,8 @@ class SalesAnalysisReportModel(BaseModel):
     ord_volumefee = db.Column(db.Float)  # 单位体积的金额
     source_code = db.Column(db.VARCHAR)  # 店铺
     yyyymm = db.Column(db.VARCHAR)
+    pro_pgross = db.Column(db.Float)
+    pro_volume = db.Column(db.Float)
     pro_fname = db.Column(db.VARCHAR)  # FOB
     pro_bsname = db.Column(db.VARCHAR)  # 成本费=fob仓对应的值
 
@@ -44,8 +46,8 @@ class ProProductModel(BaseModel):
 class OrdSourceAdfeeModel(BaseModel):
     __tablename__ = 'ord_source_ad_fee'
     order_pay_time = db.Column(db.TIMESTAMP)
-    week = db.Column(db.VARCHAR)        # 周
-    ad_fee_pro_type = db.Column(db.VARCHAR)        # 广告费对应的品类,填二级类的code
+    week = db.Column(db.VARCHAR)  # 周
+    ad_fee_pro_type = db.Column(db.VARCHAR)  # 广告费对应的品类,填二级类的code
     total_ad_fee = db.Column(db.VARCHAR)  # 当日总广告费
     total_us_fee = db.Column(db.VARCHAR)  # 当日美国总广告费
     total_japan_fee = db.Column(db.VARCHAR)  # 当日日本总广告费

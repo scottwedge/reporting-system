@@ -15,8 +15,8 @@ from reporting_api.utils.response_utils import obj_to_dict
 
 class MonthSalelogList(Resource):
     def get(self):
-        start_time = get_argument('start_time', default='2020-09-15')
-        end_time = get_argument('end_time', default='2020-9-16')
+        start_time = get_argument('start_time', default='2019-01-15')
+        end_time = get_argument('end_time', default='2019-02-16')
         source_code = get_argument('source_code')
         ord_sitecode = get_argument('ord_sitecode')
         pro_sec_type = get_argument('pro_sec_type')
@@ -87,8 +87,17 @@ class MonthSalelogList(Resource):
                 'ord_expfee_rate': '%.4f' % (tmp_dic['ord_expfee'] / tmp_dic['ord_sale_amount']),  # 物流率
                 'ord_maoli_rate': '%.4f' % (tmp_dic['ord_maoli'] / tmp_dic['ord_sale_amount']),
                 'pro_materialrate_rate': '%.4f' % (tmp_dic['pro_materialrate'] / tmp_dic['count']),  # ???
-                'ord_volumefee': tmp_dic['ord_volumefee'] / tmp_dic['count'],  # ???
-                'ord_pgrossfee': tmp_dic['ord_pgrossfee'] / tmp_dic['count'],  # ???
+                'ord_volumefee': round(tmp_dic['ord_volumefee'] / tmp_dic['count'], 4),  # ???
+                'ord_pgrossfee': round(tmp_dic['ord_pgrossfee'] / tmp_dic['count'], 4),  # ???
+
+                'ord_costfee': round(tmp_dic['ord_costfee'], 2),
+                'ord_expfee': round(tmp_dic['ord_expfee'], 2),
+                'ord_factoryfee': round(tmp_dic['ord_factoryfee'], 2),
+                'ord_fobfee': round(tmp_dic['ord_fobfee'], 2),
+                'ord_platfee': round(tmp_dic['ord_platfee'], 2),
+                'ord_sale_amount': round(tmp_dic['ord_sale_amount'], 2),
+                'pro_materialrate': round(tmp_dic['pro_materialrate'], 2),
+                'ord_maoli': round(tmp_dic['ord_maoli'], 2),
             })
         total_dic.update({
             'average_price': '%.2f' % (total_dic['ord_sale_amount'] / total_dic['ord_salenum']),
@@ -96,7 +105,17 @@ class MonthSalelogList(Resource):
             'ord_costfee_rate': '%.4f' % (total_dic['ord_costfee'] / total_dic['ord_sale_amount']),  # 成本率
             'ord_expfee_rate': '%.4f' % (total_dic['ord_expfee'] / total_dic['ord_sale_amount']),  # 物流率
             'ord_maoli_rate': '%.4f' % (total_dic['ord_maoli'] / total_dic['ord_sale_amount']),
-            'ord_pgrossfee': total_dic['ord_pgrossfee'] / len(user),  # ???
+            'pro_materialrate': round(total_dic['pro_materialrate'] / len(user), 4),  # ???
+
+            'ord_costfee': round(total_dic['ord_costfee'], 2),
+            'ord_maoli': round(total_dic['ord_maoli'], 2),
+            'ord_expfee': round(total_dic['ord_expfee'], 2),
+            'ord_factoryfee': round(total_dic['ord_factoryfee'], 2),
+            'ord_fobfee': round(total_dic['ord_fobfee'], 2),
+            'ord_platfee': round(total_dic['ord_platfee'], 2),
+            'ord_sale_amount': round(total_dic['ord_sale_amount'], 2),
+            'ord_volumefee': None,
+            'ord_pgrossfee': None
         })
         new_total_dic = {}
         for k, v in total_dic.items():
@@ -195,6 +214,9 @@ def get_data(start_time, end_time):
             tmp_dict = dict(X + Y)
         else:
             tmp_dict.update(args)
+    for k, v in tmp_dict.items():
+        if isinstance(v, float):
+            tmp_dict[k] = round(v, 2)
     tmp_dict.update({
         'date': f'{start_time}至{end_time}'
     })

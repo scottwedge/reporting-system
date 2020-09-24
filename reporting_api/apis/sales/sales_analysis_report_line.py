@@ -22,8 +22,8 @@ from reporting_api.utils.sales_report_utils import time_range, time_range2
 
 class IndependentStationNationalSalesAnalysisPhoto(Resource):
     def get(self):
-        start_time = get_argument('start_time', default='2020-10-01')
-        end_time = get_argument('end_time', default='2020-10-01')
+        start_time = get_argument('start_time', default='2020-09-01')
+        end_time = get_argument('end_time', default='2020-09-20')
 
         if start_time > end_time:
             raise ServiceException(ServiceError.INVALID_VALUE)
@@ -63,20 +63,22 @@ class IndependentStationNationalSalesAnalysisPhoto(Resource):
 
             else:
                 data[tmp.index(pay_date)].update({
-                    f'ord_sale_amount_{source}': args['ord_sale_amount_' + source] + data[tmp.index(pay_date)][
-                        'ord_sale_amount_' + source],
+                    f'ord_sale_amount_{source}': round(args['ord_sale_amount_' + source] + data[tmp.index(pay_date)][
+                        'ord_sale_amount_' + source], 2),
                     f'ord_salenum_{source}': args['ord_salenum_' + source] + data[tmp.index(pay_date)][
                         'ord_salenum_' + source],
                     f'ord_maoli_{source}': args['ord_maoli_' + source] + data[tmp.index(pay_date)][
                         'ord_maoli_' + source],
                 })
+        if not data:
+            return ok(data={'data': []})
 
         for dic in data:
             dic['ord_sale_amount_Global'] = sum(
                 [v for k, v in dic.items() if k.startswith('ord_sale_amount_') and v])
             dic['ord_salenum_Global'] = sum([v for k, v in dic.items() if k.startswith('ord_salenum_') and v])
             dic['ord_maoli_Global'] = sum([v for k, v in dic.items() if k.startswith('ord_maoli_') and v]) / dic[
-                'ord_sale_amount_Global'] if dic['ord_sale_amount_Global'] else None
+                'ord_sale_amount_Global'] if dic['ord_sale_amount_Global'] else 0
 
         source_code = ['FlexispotUS', 'FleximountsUS', 'FlexiSpotUK', 'FlexiSpotDE', 'FlexiSpotFR', 'FlexiSpotJP',
                        'FleximountsJP', 'Global']
@@ -85,8 +87,9 @@ class IndependentStationNationalSalesAnalysisPhoto(Resource):
             for source in source_code:
                 if f'ord_salenum_{source}' in dic.keys():
                     dic.update({
-                        f'ord_maoli_rate_{source}': dic.get(f'ord_maoli_{source}', 0) /
-                                                    dic[f'ord_sale_amount_{source}'],
+                        f'ord_maoli_rate_{source}': round(dic.get(f'ord_maoli_{source}', 0) /
+                                                          dic[f'ord_sale_amount_{source}']
+                                                          if dic[f'ord_sale_amount_{source}'] else 0, 4)
                     })
 
         create_dict = {}

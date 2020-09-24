@@ -12,10 +12,28 @@ from reporting_api.utils.response_utils import obj_to_dict
 
 class EntrySourceFee(Resource):
     def get(self):
-        start_time = get_argument("start_time", default="2020-8-01", required=True)
+        start_time = get_argument("start_time", default="2019-07-01", required=True)
         end_time = get_argument("end_time", default="2020-10-01")
         results = OrdSourceAdfeeModel.query.filter(
             OrdSourceAdfeeModel.order_pay_time.between(start_time, end_time))
+        city_list = ["total_us_fee",
+                     "total_japan_fee",
+                     "total_europe_fee",
+                     "total_canada_fee",
+                     "total_loctek_fee",
+                     "total_google_fee",
+                     "total_india_fee", ]
+        sorts_list = [
+            "TV mounts",
+            "Monitor mounts",
+            "Fitness",
+            "Spacemaster mounts",
+            "Desktop Riser",
+            "height adjustable desk",
+            "Monitor Stand",
+            "healthcare",
+            "offacc",
+        ]
         day_list = []
         tmp_dic = {}
         for result in results:
@@ -24,76 +42,55 @@ class EntrySourceFee(Resource):
                                            store_code.get("week"))
             if ord_pay_time not in day_list:
                 day_list.append(ord_pay_time)
-                tmp_dic[ord_pay_time] = {
-                    "total_us_fee": 0,
-                    "total_japan_fee": 0,
-                    "total_europe_fee": 0,
-                    "total_canada_fee": 0,
-                    "total_loctek_fee": 0,
-                    "total_google_fee": 0,
-                    "total_india_fee": 0,
-                    "TV mounts": 0,  # 电视架
-                    "Monitor mounts": 0,  # 显示架
-                    "Fitness": 0,  # 健身
-                    "Spacemaster mounts": 0,  # 空间
-                    "Desktop Riser": 0,  # 升降桌
-                    "height adjustable desk": 0,  # 升降台
-                    "Monitor Stand": 0,  # 增高台.
-                    "healthcare": 0,  # 健康管理类
-                    "offacc": 0,  # 办公周边
-                }
-            total_us_fee = store_code.get('total_us_fee')
-            tmp_dic[ord_pay_time]["total_us_fee"] += float(total_us_fee) if total_us_fee else 0
+                tmp_dic.update({
+                    ord_pay_time: {
+                        "total_amount": 0, }
+                })
+                for sorts in sorts_list:
+                    tmp_dic[ord_pay_time].update({
+                        sorts.lower().replace(' ', '_'): 0,
+                    })
+                for city in city_list:
+                    tmp_dic[ord_pay_time].update({
+                        city: 0,
+                    })
+            for sort in city_list:
+                try:
+                    amount = store_code.get(sort)
+                    tmp_dic[ord_pay_time][sort] += float(amount) if amount else 0
+                except Exception as e:
+                    pass
 
-            total_japan_fee = store_code.get('total_japan_fee')
-            tmp_dic[ord_pay_time]["total_japan_fee"] += float(total_japan_fee) if total_japan_fee else 0
-
-            total_europe_fee = store_code.get('total_europe_fee')
-            tmp_dic[ord_pay_time]["total_europe_fee"] += float(total_europe_fee) if total_europe_fee else 0
-
-            total_canada_fee = store_code.get('total_canada_fee')
-            tmp_dic[ord_pay_time]["total_canada_fee"] += float(total_canada_fee) if total_canada_fee else 0
-
-            total_loctek_fee = store_code.get('total_loctek_fee')
-            tmp_dic[ord_pay_time]["total_loctek_fee"] += float(total_loctek_fee) if total_loctek_fee else 0
-
-            total_google_fee = store_code.get('total_google_fee')
-            tmp_dic[ord_pay_time]["total_google_fee"] += float(total_google_fee) if total_google_fee else 0
-
-            total_india_fee = store_code.get('total_india_fee')
-            tmp_dic[ord_pay_time]["total_india_fee"] += float(total_india_fee) if total_india_fee else 0
-
-            ad_fee_pro_type = store_code.get('ad_fee_pro_type')
             total_ad_fee = store_code.get('total_ad_fee')
-            if ad_fee_pro_type in ["TV mounts", "Monitor mounts", "Fitness", "Spacemaster mounts", "Desktop Riser",
-                                   "height adjustable desk", "Monitor Stand", "healthcare", "offacc"]:
-                tmp_dic[ord_pay_time][ad_fee_pro_type] += float(total_ad_fee) if total_ad_fee else 0
-
+            ad_fee_pro_type = store_code.get('ad_fee_pro_type')
+            if ad_fee_pro_type in sorts_list:
+                dmp_key = ad_fee_pro_type.lower().replace(' ', '_')
+                tmp_dic[ord_pay_time][dmp_key] += float(total_ad_fee) if total_ad_fee else 0
+                tmp_dic[ord_pay_time]["total_amount"] += float(total_ad_fee) if total_ad_fee else 0
         res_list = []
+        num = 0
         for tmp in tmp_dic:
-            res_list.append({
+            num += 1
+            args = {
+                "id": num,
                 "data_time": tmp,
-                "total_us_fee": round(tmp_dic[tmp]["total_us_fee"], 1),
-                "total_japan_fee": round(tmp_dic[tmp]["total_japan_fee"], 1),
-                "total_europe_fee": round(tmp_dic[tmp]["total_europe_fee"], 1),
-                "total_canada_fee": round(tmp_dic[tmp]["total_canada_fee"], 1),
-                "total_loctek_fee": round(tmp_dic[tmp]["total_loctek_fee"], 1),
-                "total_google_fee": round(tmp_dic[tmp]["total_google_fee"], 1),
-                "total_india_fee": round(tmp_dic[tmp]["total_india_fee"], 1),
-                "tv_mounts": round(tmp_dic[tmp]["TV mounts"], 1),
-                "monitor_mounts": round(tmp_dic[tmp]["Monitor mounts"], 1),
-                "fitness": round(tmp_dic[tmp]["Fitness"], 1),
-                "spacemaster_mounts": round(tmp_dic[tmp]["Spacemaster mounts"], 1),
-                "desktop_riser": round(tmp_dic[tmp]["Desktop Riser"], 1),
-                "height_adjustable_desk": round(tmp_dic[tmp]["height adjustable desk"], 1),
-                "monitor_stand": round(tmp_dic[tmp]["Monitor Stand"], 1),
-                "healthcare": round(tmp_dic[tmp]["healthcare"], 1),
-                "offacc": round(tmp_dic[tmp]["offacc"], 1),
-                "total_cost": round(sum([
-                    tmp_dic[tmp]["TV mounts"], tmp_dic[tmp]["Monitor mounts"], tmp_dic[tmp]["Fitness"],
-                    tmp_dic[tmp]["Spacemaster mounts"],
-                    tmp_dic[tmp]["Desktop Riser"], tmp_dic[tmp]["height adjustable desk"],
-                    tmp_dic[tmp]["Monitor Stand"], tmp_dic[tmp]["healthcare"], tmp_dic[tmp]["offacc"]
-                ]), 1)
-            })
-        return ok({"data": res_list})
+                "desktop_riser": round(tmp_dic[tmp]["desktop_riser"], 2),
+                "fitness": round(tmp_dic[tmp]["fitness"], 2),
+                "healthcare": round(tmp_dic[tmp]["healthcare"], 2),
+                "height_adjustable_desk": round(tmp_dic[tmp]["height_adjustable_desk"], 2),
+                "monitor_mounts": round(tmp_dic[tmp]["monitor_mounts"], 2),
+                "monitor_stand": round(tmp_dic[tmp]["monitor_stand"], 2),
+                "offacc": round(tmp_dic[tmp]["offacc"], 2),
+                "spacemaster_mounts": round(tmp_dic[tmp]["spacemaster_mounts"], 2),
+                "total_amount": round(tmp_dic[tmp]["total_amount"], 2),
+                "total_canada_fee": round(tmp_dic[tmp]["total_canada_fee"], 2),
+                "total_europe_fee": round(tmp_dic[tmp]["total_europe_fee"], 2),
+                "total_google_fee": round(tmp_dic[tmp]["total_google_fee"], 2),
+                "total_india_fee": round(tmp_dic[tmp]["total_india_fee"], 2),
+                "total_japan_fee": round(tmp_dic[tmp]["total_japan_fee"], 2),
+                "total_loctek_fee": round(tmp_dic[tmp]["total_loctek_fee"], 2),
+                "total_us_fee": round(tmp_dic[tmp]["total_us_fee"], 2),
+                "tv_mounts": round(tmp_dic[tmp]["tv_mounts"], 2),
+            }
+            res_list.append(args)
+        return ok(res_list)

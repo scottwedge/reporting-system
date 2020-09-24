@@ -1,5 +1,5 @@
 # -*- coding:utf-8 -*
-# 八大品类报表
+# 111
 import datetime
 import re
 from flask_restful import Resource
@@ -13,114 +13,7 @@ from reporting_api.models.sales_models.sales_analysis_report import (
 )
 
 
-class GlobalTyprSaleFirstLog(Resource):
-    def fob_maoli(self, factoryfee, fob):
-        # 换汇 = 出厂价 / fob
-        swap = factoryfee / fob
-        # FOB毛利 = FOB金额 * (汇率 + 0.17 * 换汇 / 1.17 - 换汇)
-        fob_maoli = fob * (swap + 0.17 * swap / 1.17 - swap)
-        return "{}%".format(round(fob_maoli * 100), 2)
-
-    def rate_maoli(self, maoli, mount):
-        rate_maoli = maoli / mount
-        return "{}%".format(round(rate_maoli * 100, 2))
-
-    def get(self):
-        start_time = get_argument("start_time", default='2020-08-15')
-        end_time = get_argument("end_time", default='2020-10-01')
-        pro_type = get_argument("pro_type", default="height adjustable desk")
-        results = SalesM.query.filter(
-            SalesM.ord_pay_time.between(start_time, end_time),
-            SalesM.pro_sec_type == pro_type)
-
-        tmp_dic = {}
-        tmp_list = []
-        for result in results:
-            obj_dict = obj_to_dict(result, keys=[], display=False)
-            print(obj_dict)
-            pay_time = re.match(r'(\d+-\d+-\d+)', obj_dict.get("ord_pay_time"))[0]
-            state = obj_dict.get("ord_sitecode")
-            if pay_time not in tmp_list:
-                tmp_list.append(pay_time)
-                tmp_dic.update({
-                    pay_time: {
-                        "state": [],
-                        "state_dic": {
-                        }
-                    }
-                })
-            if state not in tmp_dic[pay_time]["state"]:
-                tmp_dic[pay_time]["state"].append(state)
-                tmp_dic[pay_time]["state_dic"].update({
-                    state: {
-                        "sale_num": 0,
-                        "sale_amount": 0,
-                        "sale_factoryfee": 0,
-                        "sale_fobfee": 0,
-                        "sale_maoli": 0,
-                    }})
-
-            tmp_dic[pay_time]["state_dic"][state]["sale_num"] += float(obj_dict.get("ord_salenum")) if obj_dict.get(
-                "ord_salenum") else 0
-            tmp_dic[pay_time]["state_dic"][state]["sale_amount"] += float(
-                obj_dict.get("ord_sale_amount")) if obj_dict.get(
-                "ord_sale_amount") else 0
-            tmp_dic[pay_time]["state_dic"][state]["sale_fobfee"] += float(obj_dict.get("ord_fobfee")) if obj_dict.get(
-                "ord_fobfee") else 0
-            tmp_dic[pay_time]["state_dic"][state]["sale_maoli"] += float(obj_dict.get("ord_maoli")) if obj_dict.get(
-                "ord_maoli") else 0
-            tmp_dic[pay_time]["state_dic"][state]["sale_factoryfee"] += float(
-                obj_dict.get("ord_factoryfee")) if obj_dict.get(
-                "ord_factoryfee") else 0
-        args = {
-            "JP": "Japan",
-            "CAN": "Canada",
-            "EU": "European",
-            "India": "INEI",
-            "US": "US",
-        }
-        total_dic = {}
-        total_list = {}
-        res_data = []
-        for tmp_time in tmp_dic:
-            day_tmp_str = str(tmp_dic[tmp_time])
-            sale_amount = round(sum(list(float(i) for i in re.findall('sale_amount\': (\\d+.\\d+)', day_tmp_str))), 2)
-            sale_fob = round(sum(list(float(i) for i in re.findall('sale_fobfee\': (\\d+.\\d+)', day_tmp_str))), 2)
-            sale_factoryfee = round(
-                sum(list(float(i) for i in re.findall('sale_factoryfee\': (\\d+.\\d+)', day_tmp_str))), 2)
-            day_txt = ["{},今日{}总销售{}美金，其中".format(tmp_time, pro_type, sale_amount)]
-            for states in tmp_dic[tmp_time]["state_dic"]:
-                states_city = args.get(states)
-                sale_day_mount = round(tmp_dic[tmp_time]["state_dic"][states]["sale_amount"], 2)
-                day_txt.append('{}销售{}美金，'.format(states_city, sale_day_mount))
-                if args.get(states) not in total_list:
-                    total_dic.update({
-                        args.get(states): 0
-                    })
-                total_dic[args.get(states)] += sale_day_mount
-            day_txt.append('FOB金额{}美金,FOB毛利{}.'.format(sale_fob, self.fob_maoli(sale_factoryfee, sale_fob)))
-            res_data.append(''.join(day_txt))
-        tmp_src = str(tmp_dic)
-        total_sale_amount = round(sum(list(float(i) for i in re.findall('sale_amount\': (\\d+.\\d+)', tmp_src))), 2)
-        total_sale_fob = round(sum(list(float(i) for i in re.findall('sale_fobfee\': (\\d+.\\d+)', tmp_src))), 2)
-        total_sale_maoli = round(sum(list(float(i) for i in re.findall('sale_maoli\': (\\d+.\\d+)', tmp_src))), 2)
-        total_sale_factoryfee = round(
-            sum(list(float(i) for i in re.findall('sale_factoryfee\': (\\d+.\\d+)', tmp_src))), 2)
-        print(self.rate_maoli(total_sale_maoli, total_sale_amount))
-        total_data_txt = ["{}-{}. 今日总计销售{}美金, 毛利率{}.其中".format(start_time.replace('-', '/'),
-                                                               end_time.replace('-', '/'),
-                                                               total_sale_amount,
-                                                               self.rate_maoli(total_sale_maoli, total_sale_amount))]
-        for ctype_amount in total_dic:
-            total_data_txt.append('{}销售{}美金，'.format(ctype_amount, total_dic[ctype_amount]))
-        total_data_txt.append(
-            'FOB金额{}美金,FOB毛利{}.'.format(total_sale_fob, self.fob_maoli(total_sale_factoryfee, total_sale_fob)))
-        total_data_txt = ''.join(total_data_txt)
-        return ok({"total_title": total_data_txt, "sale_list": res_data})
-
-
-
-class GlobalTyprSaleLostLog(Resource):
+class FlexispotDaysalelog(Resource):
     def get(self):
         table = db.session.query(SalesM, ProductM).join(SalesM, SalesM.pro_fname == ProductM.bsname)
         start_time = get_argument('start_time', default='2019-09-01')
@@ -129,10 +22,9 @@ class GlobalTyprSaleLostLog(Resource):
         # start_time = datetime.date.today() - datetime.timedelta(days=170)
         #
         # end_time = datetime.date.today()
-        pro_type = get_argument("pro_type", default="height adjustable desk")
-
+        ord_sitecode = get_argument("ord_sitecode", default="FlexiSpotUSOffline")
         results = table.filter(SalesM.ord_pay_time.between(start_time, end_time),
-                               SalesM.pro_sec_type == pro_type)
+                               SalesM.ord_sitecode == ord_sitecode)
         tmp_list = []
         tmp_dic = {}
         for sales_table, product_table in results:
@@ -266,10 +158,10 @@ class GlobalTyprSaleMiddleLog(Resource):
         table = db.session.query(SalesM, ProductM).join(SalesM, SalesM.pro_fname == ProductM.bsname)
         start_time = get_argument("start_time", default='2020-10-01')
         end_time = get_argument("end_time", default='2020-10-10')
-        pro_type = get_argument("pro_type", default="height adjustable desk")
+        ord_sitecode = get_argument("ord_sitecode", default="Flexispot")
         results = table.filter(
             SalesM.ord_pay_time.between(start_time, end_time),
-            SalesM.pro_sec_type == pro_type)
+            SalesM.ord_sitecode == ord_sitecode)
         table_dic = {}
         table_list = []
         ret_dic = {"data": []}
@@ -278,7 +170,7 @@ class GlobalTyprSaleMiddleLog(Resource):
 
         def table_analysis(obj_dict):
             """处理表格数据"""
-            store_code = obj_dict.get('source_code', '')
+            store_code = obj_dict.get('ord_sitecode', '')
             if store_code not in table_list:
                 table_list.append(store_code)
                 table_dic[store_code] = {
@@ -413,4 +305,3 @@ class GlobalTyprSaleMiddleLog(Resource):
         })
 
         return ok(ret_dic)
-
