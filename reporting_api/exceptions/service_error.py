@@ -6,7 +6,7 @@ from .error_core import ErrorCore
 @unique
 class ServiceError(ErrorCore):
     '''
-    defined serivce errors
+    defined service errors
     '''
 
     NO_AUTH = 201001
